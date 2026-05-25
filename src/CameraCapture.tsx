@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Trash2, Check, X, Pencil, ArrowLeft, ImageUp } from 'lucide-react'
+import { Camera, Trash2, Check, X, Pencil, ArrowLeft, ImageUp, Languages, Loader2 } from 'lucide-react'
 import type { StoredCard } from './types'
 import { loadCards, saveCards } from './utils/cards'
+import { translateToFrench } from './utils/translate'
 
 type DraftCard = StoredCard & { id: number }
 type EditState = { original: string; translation: string }
@@ -18,6 +19,8 @@ export default function CameraCapture() {
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editState, setEditState] = useState<EditState>({ original: '', translation: '' })
+  const [translateProgress, setTranslateProgress] = useState<{ done: number; total: number } | null>(null)
+  const [translateError, setTranslateError] = useState<string | null>(null)
 
   const handleFile = async (file: File) => {
     setError(null)
@@ -58,6 +61,25 @@ export default function CameraCapture() {
   }
 
   const cancelEdit = () => setEditingId(null)
+
+  const translateDraft = async () => {
+    if (translateProgress) return
+    setTranslateError(null)
+    setTranslateProgress({ done: 0, total: draft.length })
+    const updated = [...draft]
+    for (let i = 0; i < draft.length; i++) {
+      try {
+        updated[i] = { ...updated[i], original: await translateToFrench(draft[i].original) }
+        setDraft([...updated])
+      } catch (err) {
+        setTranslateError(err instanceof Error ? err.message : 'Translation failed.')
+        setTranslateProgress(null)
+        return
+      }
+      setTranslateProgress({ done: i + 1, total: draft.length })
+    }
+    setTranslateProgress(null)
+  }
 
   const addAll = () => {
     const existing = loadCards()
@@ -130,13 +152,28 @@ export default function CameraCapture() {
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xs uppercase tracking-widest text-gray-400">{draft.length} cards found</h2>
-                  <button
-                    onClick={addAll}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-95 transition text-sm font-medium"
-                  >
-                    <Check size={16} /> Add all
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={translateDraft}
+                      disabled={!!translateProgress}
+                      className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 disabled:text-gray-500 disabled:cursor-not-allowed transition"
+                    >
+                      {translateProgress
+                        ? <><Loader2 size={13} className="animate-spin" /> {translateProgress.done} / {translateProgress.total}</>
+                        : <><Languages size={13} /> Translate to French</>
+                      }
+                    </button>
+                    <button
+                      onClick={addAll}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-95 transition text-sm font-medium"
+                    >
+                      <Check size={16} /> Add all
+                    </button>
+                  </div>
                 </div>
+                {translateError && (
+                  <p className="text-xs text-red-400 bg-red-400/10 rounded-xl px-3 py-2">{translateError}</p>
+                )}
 
                 <div className="flex flex-col gap-2">
                   {draft.map((card) =>

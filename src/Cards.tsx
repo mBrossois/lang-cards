@@ -129,25 +129,25 @@ export default function Cards() {
       <p className="text-gray-400 text-sm mb-4">Did you know the translation?</p>
       <div className="flex gap-3">
         <button
-          onClick={() => goNext(14)}
+          onClick={() => goNext(1)}
           className="px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 active:scale-95 transition font-medium text-sm"
         >
           No
         </button>
         <button
-          onClick={() => goNext(7)}
+          onClick={() => goNext(3)}
           className="px-4 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-95 transition font-medium text-sm"
         >
           Hardly
         </button>
         <button
-          onClick={() => goNext(3)}
+          onClick={() => goNext(7)}
           className="px-4 py-3 rounded-xl bg-lime-600 hover:bg-lime-500 active:scale-95 transition font-medium text-sm"
         >
           Mostly
         </button>
         <button
-          onClick={() => goNext(1)}
+          onClick={() => goNext(14)}
           className="px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition font-medium text-sm"
         >
           Yes

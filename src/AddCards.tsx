@@ -1,9 +1,10 @@
 import { useState, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Pencil, Trash2, Check, X, Search, Camera } from 'lucide-react'
+import { Pencil, Trash2, Check, X, Search, Camera, Languages, Loader2 } from 'lucide-react'
 import type { StoredCard } from './types'
 import { loadCards, saveCards } from './utils/cards'
+import { translateToFrench } from './utils/translate'
 
 const ITEM_HEIGHT = 56
 
@@ -22,9 +23,56 @@ type CardListProps = {
   onConfirmEdit: (realIndex: number) => void
   onCancelEdit: () => void
   onRemove: (realIndex: number) => void
+  onTranslateAll: () => void
+  translateProgress: { done: number; total: number } | null
+  translateError: string | null
 }
 
-function CardList({ total, filtered, query, setQuery, editingIndex, editState, onEditStateChange, onStartEdit, onConfirmEdit, onCancelEdit, onRemove }: CardListProps) {
+type EditModalProps = {
+  editState: EditState
+  onEditStateChange: (patch: Partial<EditState>) => void
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function EditModal({ editState, onEditStateChange, onConfirm, onCancel }: EditModalProps) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <div className="w-full max-w-sm rounded-2xl bg-gray-800 p-6 flex flex-col gap-4">
+        <h2 className="text-sm uppercase tracking-widest text-gray-400">Edit card</h2>
+        <div className="flex flex-col gap-3">
+          <input
+            autoFocus
+            value={editState.original}
+            onChange={(e) => onEditStateChange({ original: e.target.value })}
+            placeholder="Original"
+            className="rounded-xl bg-gray-700 px-4 py-3 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-violet-500 text-sm"
+          />
+          <input
+            value={editState.translation}
+            onChange={(e) => onEditStateChange({ translation: e.target.value })}
+            onKeyDown={(e) => { if (e.key === 'Enter') onConfirm(); if (e.key === 'Escape') onCancel() }}
+            placeholder="Translation (Dutch)"
+            className="rounded-xl bg-gray-700 px-4 py-3 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-violet-500 text-sm"
+          />
+        </div>
+        <div className="flex gap-3 self-end">
+          <button onClick={onCancel} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-sm transition">
+            <X size={16} /> Cancel
+          </button>
+          <button onClick={onConfirm} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm transition">
+            <Check size={16} /> Save
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CardList({ total, filtered, query, setQuery, editingIndex, editState, onEditStateChange, onStartEdit, onConfirmEdit, onCancelEdit, onRemove, onTranslateAll, translateProgress, translateError }: CardListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
     count: filtered.length,
@@ -37,11 +85,34 @@ function CardList({ total, filtered, query, setQuery, editingIndex, editState, o
 
   return (
     <div className="flex flex-col gap-3">
+      {editingIndex !== null && (
+        <EditModal
+          editState={editState}
+          onEditStateChange={onEditStateChange}
+          onConfirm={() => onConfirmEdit(editingIndex)}
+          onCancel={onCancelEdit}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-xs uppercase tracking-widest text-gray-400">
           Saved cards ({filtered.length}{query ? ` of ${total}` : ''})
         </h2>
+        <button
+          onClick={onTranslateAll}
+          disabled={!!translateProgress}
+          className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 disabled:text-gray-500 disabled:cursor-not-allowed transition"
+        >
+          {translateProgress
+            ? <><Loader2 size={13} className="animate-spin" /> {translateProgress.done} / {translateProgress.total}</>
+            : <><Languages size={13} /> Translate to French</>
+          }
+        </button>
       </div>
+
+      {translateError && (
+        <p className="text-xs text-red-400 bg-red-400/10 rounded-xl px-3 py-2">{translateError}</p>
+      )}
 
       <div className="relative mb-1">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
@@ -57,52 +128,26 @@ function CardList({ total, filtered, query, setQuery, editingIndex, editState, o
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
           {virtualizer.getVirtualItems().map((row) => {
             const card = filtered[row.index]
-            const isEditing = editingIndex === card.realIndex
             return (
               <div
                 key={row.key}
                 style={{ position: 'absolute', top: row.start, left: 0, right: 0 }}
               >
-                {isEditing ? (
-                  <div className="flex flex-col gap-2 rounded-xl bg-gray-800 px-4 py-3 mr-0 mb-2">
-                    <input
-                      autoFocus
-                      value={editState.original}
-                      onChange={(e) => onEditStateChange({ original: e.target.value })}
-                      className="rounded-lg bg-gray-700 px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-violet-500"
-                    />
-                    <input
-                      value={editState.translation}
-                      onChange={(e) => onEditStateChange({ translation: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === 'Enter') onConfirmEdit(card.realIndex); if (e.key === 'Escape') onCancelEdit() }}
-                      className="rounded-lg bg-gray-700 px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-violet-500"
-                    />
-                    <div className="flex gap-2 self-end">
-                      <button onClick={onCancelEdit} className="text-gray-400 hover:text-white transition">
-                        <X size={18} />
-                      </button>
-                      <button onClick={() => onConfirmEdit(card.realIndex)} className="text-violet-400 hover:text-violet-300 transition">
-                        <Check size={18} />
-                      </button>
-                    </div>
+                <div className="flex items-center justify-between rounded-xl bg-gray-800 px-4 h-12 mb-2">
+                  <div className="flex gap-4 text-sm min-w-0">
+                    <span className="font-medium truncate">{card.original}</span>
+                    <span className="text-gray-400 shrink-0">→</span>
+                    <span className="text-gray-300 truncate">{card.translation}</span>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between rounded-xl bg-gray-800 px-4 h-12 mb-2">
-                    <div className="flex gap-4 text-sm min-w-0">
-                      <span className="font-medium truncate">{card.original}</span>
-                      <span className="text-gray-400 shrink-0">→</span>
-                      <span className="text-gray-300 truncate">{card.translation}</span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0 ml-3">
-                      <button onClick={() => onStartEdit(card.realIndex)} className="text-gray-500 hover:text-gray-300 transition">
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => onRemove(card.realIndex)} className="text-gray-500 hover:text-red-400 transition">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-3">
+                    <button onClick={() => onStartEdit(card.realIndex)} className="text-gray-500 hover:text-gray-300 transition">
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => onRemove(card.realIndex)} className="text-gray-500 hover:text-red-400 transition">
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
             )
           })}
@@ -120,6 +165,8 @@ export default function AddCards() {
   const [query, setQuery] = useState('')
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editState, setEditState] = useState<EditState>({ original: '', translation: '' })
+  const [translateProgress, setTranslateProgress] = useState<{ done: number; total: number } | null>(null)
+  const [translateError, setTranslateError] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -164,6 +211,27 @@ export default function AddCards() {
     if (editingIndex === realIndex) setEditingIndex(null)
   }
 
+  const translateAll = async () => {
+    if (translateProgress) return
+    setTranslateError(null)
+    const current = loadCards()
+    setTranslateProgress({ done: 0, total: current.length })
+    const updated = [...current]
+    for (let i = 0; i < current.length; i++) {
+      try {
+        updated[i] = { ...updated[i], original: await translateToFrench(current[i].original) }
+        saveCards(updated)
+        setCards([...updated])
+      } catch (err) {
+        setTranslateError(err instanceof Error ? err.message : 'Translation failed.')
+        setTranslateProgress(null)
+        return
+      }
+      setTranslateProgress({ done: i + 1, total: current.length })
+    }
+    setTranslateProgress(null)
+  }
+
   return (
     <div className="min-h-svh bg-gray-950 text-white flex flex-col items-center p-6">
       <div className="w-full max-w-lg">
@@ -185,7 +253,7 @@ export default function AddCards() {
             <input
               value={translation}
               onChange={(e) => setTranslation(e.target.value)}
-              placeholder="e.g. Hello"
+              placeholder="e.g. Hallo"
               className="rounded-xl bg-gray-800 px-4 py-3 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-violet-500"
             />
           </div>
@@ -220,6 +288,9 @@ export default function AddCards() {
           onConfirmEdit={confirmEdit}
           onCancelEdit={cancelEdit}
           onRemove={removeCard}
+          onTranslateAll={translateAll}
+          translateProgress={translateProgress}
+          translateError={translateError}
         />
       </div>
     </div>
