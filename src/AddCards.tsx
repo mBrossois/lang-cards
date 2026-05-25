@@ -7,9 +7,101 @@ import { loadCards, saveCards } from './utils/cards'
 import { translateToFrench } from './utils/translate'
 
 const ITEM_HEIGHT = 56
+const MAX_TRANSLATE_SELECT = 30
 
 type EditState = { original: string; translation: string }
 type IndexedCard = StoredCard & { realIndex: number }
+
+type TranslateSelectModalProps = {
+  cards: IndexedCard[]
+  onConfirm: (selectedIndices: number[]) => void
+  onCancel: () => void
+}
+
+function TranslateSelectModal({ cards, onConfirm, onCancel }: TranslateSelectModalProps) {
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+
+  const toggle = (realIndex: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(realIndex)) {
+        next.delete(realIndex)
+      } else if (next.size < MAX_TRANSLATE_SELECT) {
+        next.add(realIndex)
+      }
+      return next
+    })
+  }
+
+  const selectAll = () => {
+    const first30 = cards.slice(0, MAX_TRANSLATE_SELECT).map((c) => c.realIndex)
+    setSelected(new Set(first30))
+  }
+
+  const clearAll = () => setSelected(new Set())
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <div className="w-full max-w-sm rounded-2xl bg-gray-800 flex flex-col gap-4 max-h-[80vh]">
+        <div className="p-6 pb-0 flex flex-col gap-1">
+          <h2 className="text-sm uppercase tracking-widest text-gray-400">Select words to translate</h2>
+          <p className="text-xs text-gray-500">Up to {MAX_TRANSLATE_SELECT} words · {selected.size} selected</p>
+        </div>
+
+        <div className="flex gap-2 px-6">
+          <button onClick={selectAll} className="text-xs text-violet-400 hover:text-violet-300 transition">Select first {MAX_TRANSLATE_SELECT}</button>
+          <span className="text-gray-600">·</span>
+          <button onClick={clearAll} className="text-xs text-gray-400 hover:text-gray-300 transition">Clear</button>
+        </div>
+
+        <div className="overflow-y-auto px-6 flex flex-col gap-1">
+          {cards.map((card) => {
+            const checked = selected.has(card.realIndex)
+            const disabled = !checked && selected.size >= MAX_TRANSLATE_SELECT
+            return (
+              <button
+                key={card.realIndex}
+                onClick={() => toggle(card.realIndex)}
+                disabled={disabled}
+                className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl transition text-sm ${
+                  checked
+                    ? 'bg-violet-600/20 text-white'
+                    : disabled
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-200 hover:bg-gray-700'
+                }`}
+              >
+                <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition ${
+                  checked ? 'bg-violet-500 border-violet-500' : 'border-gray-500'
+                }`}>
+                  {checked && <Check size={10} strokeWidth={3} />}
+                </div>
+                <span className="truncate">{card.original}</span>
+                {card.translation && <span className="text-gray-500 shrink-0 truncate max-w-[100px]">{card.translation}</span>}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="p-6 pt-3 flex gap-3 justify-end border-t border-gray-700">
+          <button onClick={onCancel} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-sm transition">
+            <X size={16} /> Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(Array.from(selected))}
+            disabled={selected.size === 0}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-sm transition"
+          >
+            <Languages size={16} /> Translate {selected.size > 0 ? `(${selected.size})` : ''}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 type CardListProps = {
   total: number
@@ -26,6 +118,10 @@ type CardListProps = {
   onTranslateAll: () => void
   translateProgress: { done: number; total: number } | null
   translateError: string | null
+  allCards: IndexedCard[]
+  showTranslateModal: boolean
+  onTranslateModalConfirm: (indices: number[]) => void
+  onTranslateModalCancel: () => void
 }
 
 type EditModalProps = {
@@ -72,7 +168,7 @@ function EditModal({ editState, onEditStateChange, onConfirm, onCancel }: EditMo
   )
 }
 
-function CardList({ total, filtered, query, setQuery, editingIndex, editState, onEditStateChange, onStartEdit, onConfirmEdit, onCancelEdit, onRemove, onTranslateAll, translateProgress, translateError }: CardListProps) {
+function CardList({ total, filtered, query, setQuery, editingIndex, editState, onEditStateChange, onStartEdit, onConfirmEdit, onCancelEdit, onRemove, onTranslateAll, translateProgress, translateError, allCards, showTranslateModal, onTranslateModalConfirm, onTranslateModalCancel }: CardListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
     count: filtered.length,
@@ -91,6 +187,14 @@ function CardList({ total, filtered, query, setQuery, editingIndex, editState, o
           onEditStateChange={onEditStateChange}
           onConfirm={() => onConfirmEdit(editingIndex)}
           onCancel={onCancelEdit}
+        />
+      )}
+
+      {showTranslateModal && (
+        <TranslateSelectModal
+          cards={allCards}
+          onConfirm={onTranslateModalConfirm}
+          onCancel={onTranslateModalCancel}
         />
       )}
 
@@ -167,6 +271,7 @@ export default function AddCards() {
   const [editState, setEditState] = useState<EditState>({ original: '', translation: '' })
   const [translateProgress, setTranslateProgress] = useState<{ done: number; total: number } | null>(null)
   const [translateError, setTranslateError] = useState<string | null>(null)
+  const [showTranslateModal, setShowTranslateModal] = useState(false)
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -211,15 +316,22 @@ export default function AddCards() {
     if (editingIndex === realIndex) setEditingIndex(null)
   }
 
-  const translateAll = async () => {
+  const openTranslateModal = () => {
     if (translateProgress) return
+    setShowTranslateModal(true)
+  }
+
+  const translateSelected = async (selectedIndices: number[]) => {
+    setShowTranslateModal(false)
+    if (selectedIndices.length === 0) return
     setTranslateError(null)
     const current = loadCards()
-    setTranslateProgress({ done: 0, total: current.length })
+    setTranslateProgress({ done: 0, total: selectedIndices.length })
     const updated = [...current]
-    for (let i = 0; i < current.length; i++) {
+    for (let i = 0; i < selectedIndices.length; i++) {
+      const realIndex = selectedIndices[i]
       try {
-        updated[i] = { ...updated[i], original: await translateToFrench(current[i].original) }
+        updated[realIndex] = { ...updated[realIndex], original: await translateToFrench(current[realIndex].original) }
         saveCards(updated)
         setCards([...updated])
       } catch (err) {
@@ -227,7 +339,7 @@ export default function AddCards() {
         setTranslateProgress(null)
         return
       }
-      setTranslateProgress({ done: i + 1, total: current.length })
+      setTranslateProgress({ done: i + 1, total: selectedIndices.length })
     }
     setTranslateProgress(null)
   }
@@ -288,9 +400,13 @@ export default function AddCards() {
           onConfirmEdit={confirmEdit}
           onCancelEdit={cancelEdit}
           onRemove={removeCard}
-          onTranslateAll={translateAll}
+          onTranslateAll={openTranslateModal}
           translateProgress={translateProgress}
           translateError={translateError}
+          allCards={cards.map((c, i) => ({ ...c, realIndex: i }))}
+          showTranslateModal={showTranslateModal}
+          onTranslateModalConfirm={translateSelected}
+          onTranslateModalCancel={() => setShowTranslateModal(false)}
         />
       </div>
     </div>
