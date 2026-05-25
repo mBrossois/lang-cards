@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --animate-slide-in-right: slide-in-right 0.3s ease both;
+  --animate-slide-in-left: slide-in-left 0.3s ease both;
+  --animate-slide-out-left: slide-out-left 0.3s ease both;
+  --animate-slide-out-right: slide-out-right 0.3s ease both;
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(calc(100% + 32px)); }
+  to   { transform: translateX(0); }
+}
+@keyframes slide-in-left {
+  from { transform: translateX(calc(-100% - 32px)); }
+  to   { transform: translateX(0); }
+}
+@keyframes slide-out-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(-100% - 32px)); }
+}
+@keyframes slide-out-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(100% + 32px)); }
+}
