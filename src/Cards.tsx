@@ -25,6 +25,7 @@ export default function Cards() {
 
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
+  const [hasFlipped, setHasFlipped] = useState(false)
   const [anim, setAnim] = useState<Anim | null>(null)
   const [done, setDone] = useState(false)
   const busyRef = useRef(false)
@@ -62,6 +63,8 @@ export default function Cards() {
         busyRef.current = false
       }, SLIDE_DURATION)
     }
+
+    setHasFlipped(false)
 
     if (flipped) {
       setFlipped(false)
@@ -121,13 +124,13 @@ export default function Cards() {
           <Card
             card={{ id: index, front: current.original, back: current.translation, lang: '' }}
             flipped={flipped}
-            onFlip={() => !busyRef.current && setFlipped((f) => !f)}
+            onFlip={() => { if (!busyRef.current) { setFlipped((f) => !f); setHasFlipped(true) } }}
           />
         </div>
       </div>
 
-      <p className="text-gray-400 text-sm mb-4">Did you know the translation?</p>
-      <div className="flex gap-3">
+      <p className={`text-gray-400 text-sm mb-4 transition-opacity duration-300 ${hasFlipped ? 'opacity-100' : 'opacity-0'}`}>Did you know the translation?</p>
+      <div className={`flex gap-3 transition-opacity duration-300 ${hasFlipped ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <button
           onClick={() => goNext(1)}
           className="px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 active:scale-95 transition font-medium text-sm"
