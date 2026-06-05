@@ -110,7 +110,7 @@ export default function Cards() {
         {index + 1} / {cards.length}
       </p>
 
-      <div className="relative w-full max-w-sm h-48 mb-8 overflow-hidden">
+      <div className="relative w-full max-w-sm min-h-48 mb-8 overflow-hidden">
         {anim && (
           <div className={`absolute inset-0 ${exitClass}`}>
             <Card
