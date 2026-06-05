@@ -34,7 +34,7 @@ export default function Card({ card, flipped, onFlip }: Props) {
           <span className="text-xs uppercase tracking-widest text-violet-300 mb-2">
             original
           </span>
-          <span className="text-4xl font-bold text-center px-4 w-full break-words hyphens-auto" lang={card.lang || 'auto'}>{card.front}</span>
+          <span className="text-4xl font-bold text-center px-4 w-full break-words hyphens-auto" lang={card.lang || 'nl'}>{card.front}</span>
           <span className="text-xs text-violet-400 mt-4">tap to reveal</span>
         </div>
 
@@ -45,7 +45,7 @@ export default function Card({ card, flipped, onFlip }: Props) {
           <span className="text-xs uppercase tracking-widest text-gray-400 mb-2">
             Translation
           </span>
-          <span className="text-4xl font-bold text-center px-4 w-full break-words hyphens-auto" lang={card.lang || 'auto'}>{card.back}</span>
+          <span className="text-4xl font-bold text-center px-4 w-full break-words hyphens-auto" lang={card.lang || 'nl'}>{card.back}</span>
           <span className="text-xs text-gray-400 mt-4">tap to flip back</span>
         </div>
       </div>
